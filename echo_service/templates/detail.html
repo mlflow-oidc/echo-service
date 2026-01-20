@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+  <a class="btn btn-sm btn-outline-secondary mb-3" href="/">← Back</a>
+  <h2 class="h5">Webhook {{ entry.id }}</h2>
+  <div class="row mt-3">
+    <div class="col-md-6">
+      <h6>Metadata</h6>
+      <table class="table table-sm table-borderless">
+        <tr><th>Received</th><td>{{ entry.received_at }}</td></tr>
+        <tr><th>IP</th><td>{{ entry.client_ip }}</td></tr>
+        <tr><th>User-Agent</th><td><code>{{ entry.user_agent }}</code></td></tr>
+        <tr><th>Method</th><td>{{ entry.method }}</td></tr>
+        <tr><th>Path</th><td>{{ entry.path }}</td></tr>
+      </table>
+
+      <h6>Headers</h6>
+      <pre class="small">{% for k,v in entry.headers.items() %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+    </div>
+    <div class="col-md-6">
+      <h6>Body</h6>
+      <pre class="bg-light p-3 small overflow-auto">{{ pretty_body }}</pre>
+    </div>
+  </div>
+{% endblock %}

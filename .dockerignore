@@ -1,0 +1,22 @@
+# Byte-compiled / cache
+__pycache__/
+*.pyc
+
+# Virtualenvs
+.venv/
+venv/
+
+# Local env files
+.env
+
+# Local editor / OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Git
+.git
+
+# Tests and extras
+tests/
+.pytest_cache/

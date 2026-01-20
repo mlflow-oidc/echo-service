@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echo-service"
+version = "0.1.0"
+description = "FastAPI echo service for webhook testing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+
+authors = [
+  { name = "Alexander Kharkevich", email = "alex@kharkevich.org" },
+]
+
+dependencies = [
+  "fastapi>=0.95",
+  "uvicorn[standard]>=0.20",
+  "jinja2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "black", "isort"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+
+[tool.setuptools.package-data]
+"echo_service" = ["templates/*.html", "static/*"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["echo_service*"]
+exclude = ["tests*"]

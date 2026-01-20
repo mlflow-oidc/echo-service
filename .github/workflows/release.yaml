@@ -1,0 +1,32 @@
+name: Docker Image Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v6
+        id: semantic_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: |
+          steps.semantic_release.outputs.new_release_published == 'true'
+        uses: ./.github/actions/build-and-push
+        with:
+          version: ${{ steps.semantic_release.outputs.next_release_version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
