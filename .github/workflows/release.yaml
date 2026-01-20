@@ -28,5 +28,5 @@ jobs:
           steps.semantic_release.outputs.new_release_published == 'true'
         uses: ./.github/actions/build-and-push
         with:
-          version: ${{ steps.semantic_release.outputs.next_release_version }}
+          version: ${{ steps.semantic_release.outputs.new_release_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
