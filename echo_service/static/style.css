@@ -1,3 +1,112 @@
-body { padding-bottom: 3rem; }
-pre { white-space: pre-wrap; word-wrap: break-word; }
+/* Theme variables inspired by mlflow-oidc web-react index.css */
+:root {
+  --color-ui-bg: #ffffff;
+  --color-ui-text: #11171c;
+  --color-ui-secondary-bg: #f6f7f9;
+  --color-logo: #2374bb;
+
+  --color-btn-primary: #2272b4;
+  --color-btn-primary-hover: #0e538b;
+  --color-btn-primary-text: #ffffff;
+
+  --color-ui-border: #c0cdd8;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+  --base-font-size: 16px;
+  --base-line-height: 1.5;
+}
+
+/* Dark mode: when 'dark' class is on <html> */
+html.dark {
+  --color-ui-bg: #11171c;
+  --color-ui-text: #e8ecf0;
+  --color-ui-secondary-bg: #1f272d;
+  --color-logo: #66b0ff;
+  --color-btn-primary: #4299e0;
+  --color-btn-primary-hover: #8ad0ff;
+  --color-ui-border: #37444f;
+}
+
+/* Basic layout */
+body {
+  background: var(--color-ui-bg);
+  color: var(--color-ui-text);
+  padding-bottom: 3rem;
+  font-family: var(--font-sans);
+  font-size: var(--base-font-size);
+  line-height: var(--base-line-height);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.container {
+  max-width: 980px;
+}
+
+/* Headings */
+h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.5rem; }
+h3 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.4rem; }
+
+/* Preformatted body */
+pre { white-space: pre-wrap; word-wrap: break-word; font-family: var(--font-mono); font-size: 0.9rem; }
 .text-truncate { max-width: 60ch; }
+
+/* Buttons: overrides to match theme */
+.btn-primary {
+  background-color: var(--color-btn-primary) !important;
+  border-color: var(--color-btn-primary) !important;
+  color: var(--color-btn-primary-text) !important;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--color-btn-primary-hover) !important;
+  border-color: var(--color-btn-primary-hover) !important;
+}
+
+/* Outline primary */
+.btn-outline-primary {
+  color: var(--color-btn-primary) !important;
+  border-color: var(--color-btn-primary) !important;
+}
+.btn-outline-primary:hover {
+  background-color: rgba(34, 114, 180, 0.08) !important;
+}
+
+/* Inputs */
+input.form-control, textarea.form-control {
+  background-color: var(--color-ui-bg);
+  border: 1px solid var(--color-ui-border);
+  color: var(--color-ui-text);
+}
+
+/* Small verify result styling */
+#verify-result { min-height: 1.2em; }
+
+/* Custom checkbox following the project styles */
+.custom-checkbox {
+  appearance: none;
+  background-color: var(--color-ui-bg);
+  border: 1px solid var(--color-ui-border);
+  border-radius: 0.25rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-block;
+  vertical-align: middle;
+}
+.custom-checkbox:checked {
+  background-color: var(--color-btn-primary);
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Make code blocks and tables readable */
+pre.bg-light { max-height: 40vh; overflow: auto; }
+.table { margin-bottom: 1rem; }
+
+/* Minor helpers */
+.mono { font-family: var(--font-mono); }
+.center-inline { display: inline-flex; align-items: center; gap: 0.5rem; }

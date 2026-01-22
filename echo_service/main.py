@@ -1,18 +1,23 @@
-from collections import deque
-from datetime import datetime
-import json
 import asyncio
+import base64
+import hashlib
+import hmac
+import json
 import logging
+import time
+from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse, PlainTextResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from echo_service.models import WebhookEntry
+from echo_service.utils import model_to_dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("echo-service")
@@ -37,7 +42,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 else:
-    logger.warning("Static directory not found; skipping static mount (looked for %s)", STATIC_DIR)
+    logger.warning(
+        "Static directory not found; skipping static mount (looked for %s)", STATIC_DIR
+    )
 
 
 def _client_ip(request: Request) -> str:
@@ -49,6 +56,39 @@ def _client_ip(request: Request) -> str:
     if request.client:
         return request.client.host
     return "unknown"
+
+
+# Signature verification helpers (MLflow HMAC v1)
+MAX_TIMESTAMP_AGE = 300  # seconds
+
+
+def verify_timestamp_freshness(
+    timestamp_str: str, max_age: int = MAX_TIMESTAMP_AGE
+) -> bool:
+    """Verify that the webhook timestamp is recent enough to prevent replay attacks"""
+    try:
+        webhook_timestamp = int(timestamp_str)
+        current_timestamp = int(time.time())
+        age = current_timestamp - webhook_timestamp
+        return 0 <= age <= max_age
+    except (ValueError, TypeError):
+        return False
+
+
+def verify_mlflow_signature(
+    payload: str, signature: str, secret: str, delivery_id: str, timestamp: str
+) -> bool:
+    """Verify the HMAC signature from MLflow webhook"""
+    if not signature.startswith("v1,"):
+        return False
+    signature_b64 = signature.removeprefix("v1,")
+    # Reconstruct signed content: delivery_id.timestamp.payload
+    signed_content = f"{delivery_id}.{timestamp}.{payload}"
+    expected_signature = hmac.new(
+        secret.encode("utf-8"), signed_content.encode("utf-8"), hashlib.sha256
+    ).digest()
+    expected_signature_b64 = base64.b64encode(expected_signature).decode("utf-8")
+    return hmac.compare_digest(signature_b64, expected_signature_b64)
 
 
 @app.post("/webhook", status_code=200)
@@ -69,7 +109,8 @@ async def receive_webhook(request: Request):
     headers = {k: v for k, v in request.headers.items()}
     entry = WebhookEntry(
         id=str(uuid4()),
-        received_at=datetime.utcnow().isoformat() + "Z",
+        # Use timezone-aware UTC timestamp to avoid deprecation warnings
+        received_at=datetime.now(timezone.utc).isoformat(),
         method=request.method,
         path=str(request.url.path),
         client_ip=_client_ip(request),
@@ -99,6 +140,7 @@ async def index(request: Request, page: int = 1, per_page: int = 25):
         total = len(store)
 
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
             "request": request,
@@ -124,6 +166,7 @@ async def details(request: Request, entry_id: str):
         pretty_body = match.raw_body
 
     return templates.TemplateResponse(
+        request,
         "detail.html",
         {"request": request, "entry": match, "pretty_body": pretty_body},
     )
@@ -136,7 +179,7 @@ async def api_list(page: int = 1, per_page: int = 100):
     end = start + per_page
     async with store_lock:
         items = list(store)[start:end]
-    return JSONResponse([i.dict() for i in items])
+    return JSONResponse([model_to_dict(i) for i in items])
 
 
 @app.get("/api/webhooks/{entry_id}")
@@ -145,7 +188,49 @@ async def api_get(entry_id: str):
         match = next((e for e in store if e.id == entry_id), None)
     if not match:
         raise HTTPException(status_code=404, detail="Webhook not found")
-    return JSONResponse(match.dict())
+    return JSONResponse(model_to_dict(match))
+
+
+@app.post("/api/webhooks/{entry_id}/verify")
+async def api_verify(entry_id: str, data: Dict[str, str]):
+    """Verify MLflow webhook signature stored for a given entry.
+    Expects JSON body: {"secret": "<secret>"}
+    """
+    secret = data.get("secret")
+    if not secret:
+        raise HTTPException(status_code=400, detail="Missing 'secret' in request body")
+    async with store_lock:
+        match = next((e for e in store if e.id == entry_id), None)
+    if not match:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+
+    headers = {k.lower(): v for k, v in match.headers.items()}
+    sig = headers.get("x-mlflow-signature")
+    delivery_id = headers.get("x-mlflow-delivery-id")
+    timestamp = headers.get("x-mlflow-timestamp")
+    if not sig:
+        raise HTTPException(
+            status_code=400, detail="Missing signature header (X-MLflow-Signature)"
+        )
+    if not delivery_id:
+        raise HTTPException(
+            status_code=400, detail="Missing delivery id header (X-MLflow-Delivery-Id)"
+        )
+    if not timestamp:
+        raise HTTPException(
+            status_code=400, detail="Missing timestamp header (X-MLflow-Timestamp)"
+        )
+
+    if not verify_timestamp_freshness(timestamp):
+        raise HTTPException(
+            status_code=400,
+            detail="Timestamp is too old or invalid (possible replay attack)",
+        )
+
+    if not verify_mlflow_signature(match.raw_body, sig, secret, delivery_id, timestamp):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    return JSONResponse({"verified": True})
 
 
 @app.get("/favicon.ico")
@@ -156,7 +241,7 @@ async def favicon():
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
         '<rect width="64" height="64" fill="#0d6efd"/>'
         '<text x="50%" y="50%" font-size="36" text-anchor="middle" fill="#ffffff" dy=".35em">E</text>'
-        '</svg>'
+        "</svg>"
     )
     return Response(content=svg, media_type="image/svg+xml")
 

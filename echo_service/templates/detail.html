@@ -16,10 +16,41 @@
       <h6>Headers</h6>
       <pre class="small">{% for k,v in entry.headers.items() %}{{ k }}: {{ v }}
 {% endfor %}</pre>
+
+      <h6 class="mt-3">Verify MLflow Signature</h6>
+      <div class="input-group mb-3" style="max-width:400px;">
+        <input id="secret-input" type="password" class="form-control" placeholder="Enter webhook secret">
+        <button id="verify-btn" class="btn btn-outline-primary">Verify</button>
+      </div>
+      <div id="verify-result" class="small"></div>
+
     </div>
     <div class="col-md-6">
       <h6>Body</h6>
       <pre class="bg-light p-3 small overflow-auto">{{ pretty_body }}</pre>
     </div>
   </div>
+
+  <script>
+  document.getElementById('verify-btn').addEventListener('click', async function(){
+    const secret = document.getElementById('secret-input').value;
+    const resEl = document.getElementById('verify-result');
+    resEl.textContent = 'Verifying...';
+    try {
+      const resp = await fetch(`/api/webhooks/{{ entry.id }}/verify`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({secret})
+      });
+      if (resp.ok) {
+        resEl.innerHTML = '<span class="text-success">Signature verified ✅</span>';
+      } else {
+        const j = await resp.json();
+        resEl.innerHTML = `<span class="text-danger">Verification failed: ${j.detail || j.error || resp.statusText}</span>`;
+      }
+    } catch (e) {
+      resEl.innerHTML = `<span class="text-danger">Error: ${e.message}</span>`;
+    }
+  });
+  </script>
 {% endblock %}

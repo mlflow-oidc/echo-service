@@ -1,4 +1,13 @@
 from pydantic import BaseModel
+
+try:
+    from pydantic import ConfigDict
+except Exception:
+    # Backwards-compatible fallback for Pydantic<2 where ConfigDict doesn't exist
+    class ConfigDict(dict):
+        pass
+
+
 from typing import Any, Dict, Optional
 
 
@@ -13,6 +22,5 @@ class WebhookEntry(BaseModel):
     body: Any
     raw_body: Optional[str]
 
-
-    class Config:
-        orm_mode = True
+    # Pydantic v2 migration: use ConfigDict and 'from_attributes' instead of legacy Config
+    model_config = ConfigDict(from_attributes=True)
